@@ -9,6 +9,8 @@ import android.view.ViewStub
 import android.view.animation.AlphaAnimation
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import androidx.viewpager2.widget.ViewPager2
+import com.google.android.material.bottomnavigation.BottomNavigationView
 import kotlin.math.absoluteValue
 
 fun View.enable() {
@@ -46,18 +48,18 @@ fun View.clickScale(scale: Float = 0.75f, duration: Long = 100) {
         }.start()
 }
 
-inline fun RecyclerView.ViewHolder.setOnClickListener(
+inline fun <VH : RecyclerView.ViewHolder> VH.setOnClickListener(
     target: View,
-    crossinline onClick: RecyclerView.ViewHolder.(position: Int) -> Unit
+    crossinline onClick: VH.(position: Int) -> Unit
 ) {
     target.setOnClickListener {
         onClick(bindingAdapterPosition)
     }
 }
 
-inline fun RecyclerView.ViewHolder.setOnLongClickListener(
+inline fun <VH : RecyclerView.ViewHolder> VH.setOnLongClickListener(
     target: View,
-    crossinline onLongClick: RecyclerView.ViewHolder.(position: Int) -> Boolean
+    crossinline onLongClick: VH.(position: Int) -> Boolean
 ) {
     target.setOnLongClickListener {
         onLongClick(bindingAdapterPosition)
@@ -65,9 +67,9 @@ inline fun RecyclerView.ViewHolder.setOnLongClickListener(
 }
 
 @SuppressLint("ClickableViewAccessibility")
-inline fun RecyclerView.ViewHolder.setOnTouchListener(
+inline fun <VH : RecyclerView.ViewHolder> VH.setOnTouchListener(
     target: View,
-    crossinline onTouch: RecyclerView.ViewHolder.(event: MotionEvent, position: Int) -> Boolean
+    crossinline onTouch: VH.(event: MotionEvent, position: Int) -> Boolean
 ) {
     target.setOnTouchListener { _, e ->
         onTouch(e, bindingAdapterPosition)
@@ -139,8 +141,8 @@ fun <T : RecyclerView.ItemDecoration> RecyclerView.removeItemDecorations(target:
             //由于没有列表引用不能使用迭代器且重测重绘方法不公开所以只能递归删除了
             removeItemDecorations(target)
             break
-        }else
-            logD("尝试删除","$i")
+        } else
+            logD("尝试删除", "$i")
 }
 
 /**
@@ -155,4 +157,30 @@ inline fun <reified T : RecyclerView.ItemDecoration> RecyclerView.getFirstItemDe
             return itemDecoration as T
     }
     return null
+}
+
+/**
+ * 把VP2和BottomNavigationView绑定
+ */
+fun ViewPager2.bindBottomNavigationView(bottomBav: BottomNavigationView) {
+    //索引-ID映射
+    val idMap = mutableListOf<Int>()
+    for (i in 0 until bottomBav.menu.size())
+        idMap.add(bottomBav.menu.getItem(i).itemId)
+    //绑定页面滑动
+    registerOnPageChangeCallback(object : ViewPager2.OnPageChangeCallback() {
+        override fun onPageSelected(position: Int) {
+            super.onPageSelected(position)
+            if (position < idMap.size)
+                bottomBav.selectedItemId = idMap[position]
+        }
+    })
+    //绑定底栏切换
+    bottomBav.setOnNavigationItemSelectedListener { item ->
+        idMap.indexOf(item.itemId).also {
+            if (it != -1)
+                currentItem = it
+        }
+        true
+    }
 }

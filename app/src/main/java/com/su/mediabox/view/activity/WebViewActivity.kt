@@ -5,6 +5,7 @@ import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.graphics.Color
 import android.net.Uri
+import android.net.http.SslError
 import android.os.Bundle
 import com.su.mediabox.util.logD
 import android.webkit.*
@@ -14,10 +15,11 @@ import com.su.mediabox.databinding.ActivityWebViewBinding
 import com.su.mediabox.pluginapi.action.WebBrowserAction
 import com.su.mediabox.util.Util.openUrl
 import com.su.mediabox.util.getAction
+import com.su.mediabox.util.viewBind
 
+class WebViewActivity : BasePluginActivity() {
 
-class WebViewActivity : BasePluginActivity<ActivityWebViewBinding>() {
-
+    private val mBinding by viewBind(ActivityWebViewBinding::inflate)
     private lateinit var mainUrl: String
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -61,15 +63,29 @@ class WebViewActivity : BasePluginActivity<ActivityWebViewBinding>() {
                 }
             }
             webViewClient = object : WebViewClient() {
-                override fun shouldOverrideUrlLoading(view: WebView, url: String): Boolean {
-                    if (url.startsWith("https") || url.startsWith("http")) {
+
+                override fun shouldOverrideUrlLoading(
+                    view: WebView,
+                    request: WebResourceRequest?
+                ): Boolean {
+                    val url = request?.url?.toString() ?: ""
+                    if (url.startsWith("https") || url.startsWith("http"))
                         view.loadUrl(url)
-                    } else try {
+                    else try {
                         startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
                     } catch (e: ActivityNotFoundException) {
                         e.printStackTrace()
                     }
-                    return true
+                    return super.shouldOverrideUrlLoading(view, request)
+                }
+
+                @SuppressLint("WebViewClientOnReceivedSslError")
+                override fun onReceivedSslError(
+                    view: WebView?,
+                    handler: SslErrorHandler?,
+                    error: SslError?
+                ) {
+                    handler?.proceed()
                 }
             }
         }.settings.apply {
@@ -88,6 +104,4 @@ class WebViewActivity : BasePluginActivity<ActivityWebViewBinding>() {
         }
     }
 
-    override fun getBinding(): ActivityWebViewBinding =
-        ActivityWebViewBinding.inflate(layoutInflater)
 }

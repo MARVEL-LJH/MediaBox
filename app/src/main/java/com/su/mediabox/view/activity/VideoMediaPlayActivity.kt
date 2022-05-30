@@ -3,6 +3,8 @@ package com.su.mediabox.view.activity
 import android.content.pm.ActivityInfo
 import android.os.Bundle
 import androidx.activity.viewModels
+import androidx.core.view.forEach
+import androidx.core.view.isVisible
 import com.shuyu.gsyvideoplayer.GSYVideoManager
 import com.shuyu.gsyvideoplayer.listener.GSYSampleCallBack
 import com.shuyu.gsyvideoplayer.model.VideoOptionModel
@@ -11,33 +13,37 @@ import com.shuyu.gsyvideoplayer.player.IjkPlayerManager
 import com.shuyu.gsyvideoplayer.player.PlayerFactory
 import com.shuyu.gsyvideoplayer.utils.GSYVideoType
 import com.shuyu.gsyvideoplayer.utils.OrientationUtils
+import com.shuyu.gsyvideoplayer.video.base.GSYVideoView
 import com.su.mediabox.databinding.ActivityVideoMediaPlayBinding
 import com.su.mediabox.pluginapi.action.PlayAction
 import com.su.mediabox.pluginapi.data.EpisodeData
-import com.su.mediabox.util.Util
+import com.su.mediabox.util.*
 import com.su.mediabox.util.Util.setFullScreen
-import com.su.mediabox.util.getAction
-import com.su.mediabox.util.gone
-import com.su.mediabox.util.showToast
 import com.su.mediabox.viewmodel.VideoMediaPlayViewModel
 import com.su.mediabox.view.component.player.VideoMediaPlayer
 import com.su.mediabox.view.component.player.VideoPositionMemoryDbStore
 import tv.danmaku.ijk.media.exo2.Exo2PlayerManager
 import tv.danmaku.ijk.media.player.IjkMediaPlayer
 
-class VideoMediaPlayActivity : BasePluginActivity<ActivityVideoMediaPlayBinding>() {
+class VideoMediaPlayActivity : BasePluginActivity(),
+    VideoMediaPlayer.PlayOperatingProxy {
+
+    companion object {
+        var playList: List<EpisodeData>? = null
+    }
+
+    private val mBinding by viewBind(ActivityVideoMediaPlayBinding::inflate)
 
     private lateinit var orientationUtils: OrientationUtils
     private val viewModel by viewModels<VideoMediaPlayViewModel>()
 
     private lateinit var action: PlayAction
 
-    companion object {
-        var playList: List<EpisodeData>? = null
-    }
+    override val currentPlayEpisodeUrl: String get() = viewModel.currentPlayEpisodeUrl
+    override fun playVideoMedia(episodeUrl: String) = viewModel.playVideoMedia(episodeUrl)
+    override suspend fun putDanmaku(danmaku: String) = viewModel.putDanmaku(danmaku)
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        VideoMediaPlayer.playViewModel = viewModel
         super.onCreate(savedInstanceState)
 
         setFullScreen(window)
@@ -51,10 +57,38 @@ class VideoMediaPlayActivity : BasePluginActivity<ActivityVideoMediaPlayBinding>
                 videoName = action.videoName
             }
 
+            mBinding.vmErrorRetry.setOnClickListener { viewModel.playVideoMedia() }
+
             viewModel.apply {
                 //视频
-                currentVideoPlayMedia.observe(this@VideoMediaPlayActivity) {
-                    mBinding.vmPlay.playVideo(it.videoPlayUrl, it.title, viewModel.videoName)
+                currentVideoPlayMedia.observe(this@VideoMediaPlayActivity) { dataState ->
+                    when (dataState) {
+                        is DataState.Loading ->
+                            mBinding.vmLoadingLayer.apply {
+                                forEach {
+                                    it.isVisible = it != mBinding.vmErrorRetry
+                                }
+                                visible()
+                            }
+                        is DataState.Success -> dataState.data?.also {
+                            mBinding.vmPlay.playVideo(
+                                it.videoPlayUrl,
+                                it.title, viewModel.videoName
+                            )
+                            mBinding.vmLoadingLayer.gone()
+                            mBinding.vmErrorRetry.gone()
+                        }
+                        is DataState.Failed -> {
+                            dataState.throwable?.message?.showToast()
+                            mBinding.vmLoadingLayer.apply {
+                                forEach {
+                                    it.isVisible = it == mBinding.vmErrorRetry
+                                }
+                                visible()
+                            }
+                        }
+                        else -> Unit
+                    }
                 }
                 //弹幕
                 currentDanmakuData.observe(this@VideoMediaPlayActivity) {
@@ -70,10 +104,20 @@ class VideoMediaPlayActivity : BasePluginActivity<ActivityVideoMediaPlayBinding>
 
     }
 
-    override fun getBinding() = ActivityVideoMediaPlayBinding.inflate(layoutInflater)
+    override fun onBackPressed() {
+        if (viewModel.currentVideoPlayMedia.value is DataState.Failed && mBinding.vmLoadingLayer.isVisible)
+            when (mBinding.vmPlay.currentState) {
+                //在已有正常播放时解析失败返回则只是关闭解析提示层
+                GSYVideoView.CURRENT_STATE_PLAYING, GSYVideoView.CURRENT_STATE_PAUSE -> mBinding.vmLoadingLayer.gone()
+                else -> super.onBackPressed()
+            }
+        else
+            super.onBackPressed()
+    }
 
     private fun init() {
         mBinding.vmPlay.run {
+            playOperatingProxy = this@VideoMediaPlayActivity
             //进度记忆
             playPositionMemoryStore = VideoPositionMemoryDbStore
             //设置旋转
@@ -111,7 +155,7 @@ class VideoMediaPlayActivity : BasePluginActivity<ActivityVideoMediaPlayBinding>
                 Util.withoutExceptionGet { action.playerManager as? Class<IPlayerManager> }
                     ?:
                     //自定义默认解码器
-                    IjkPlayerManager::class.java
+                    Exo2PlayerManager::class.java
             PlayerFactory.setPlayManager(playManager)
 
             //TODO 硬解码开关
@@ -143,6 +187,5 @@ class VideoMediaPlayActivity : BasePluginActivity<ActivityVideoMediaPlayBinding>
         orientationUtils.releaseListener()
         //释放播放列表
         playList = null
-        VideoMediaPlayer.playViewModel = null
     }
 }

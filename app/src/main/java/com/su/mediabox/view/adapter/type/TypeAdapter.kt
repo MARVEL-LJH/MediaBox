@@ -2,7 +2,6 @@ package com.su.mediabox.view.adapter.type
 
 import android.annotation.SuppressLint
 import android.content.Context
-import com.su.mediabox.util.logD
 import android.view.MotionEvent
 import android.view.ViewGroup
 import androidx.recyclerview.widget.DiffUtil
@@ -10,11 +9,8 @@ import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.su.mediabox.pluginapi.data.*
+import com.su.mediabox.util.*
 import com.su.mediabox.util.Util.withoutExceptionGet
-import com.su.mediabox.util.getFirstItemDecorationBy
-import com.su.mediabox.util.setOnClickListener
-import com.su.mediabox.util.setOnLongClickListener
-import com.su.mediabox.util.setOnTouchListener
 import com.su.mediabox.view.viewcomponents.*
 
 typealias DataViewMapList = ArrayList<Pair<Class<Any>, Class<TypeViewHolder<Any>>>>
@@ -121,36 +117,15 @@ class TypeAdapter(
     inline fun <reified T> getTag(key: String = T::class.java.simpleName): T? =
         withoutExceptionGet { tags[key] as? T }
 
-    //<VH的Class,对应Listener>
-    val clickListeners by lazy(LazyThreadSafetyMode.NONE) { mutableMapOf<Class<*>, TypeViewHolder<*>.(Int) -> Unit>() }
-    val longClickListeners by lazy(LazyThreadSafetyMode.NONE) { mutableMapOf<Class<*>, TypeViewHolder<*>.(Int) -> Boolean>() }
-    val touchListeners by lazy(LazyThreadSafetyMode.NONE) { mutableMapOf<Class<*>, TypeViewHolder<*>.(MotionEvent, Int) -> Boolean>() }
+    val vhCreateDsLs by unsafeLazy { mutableMapOf<Class<*>, TypeViewHolder<*>.() -> Unit>() }
 
     /**
-     * 为某种VH的itemView添加点击监听，重复添加会覆盖
+     * 添加某种VH创建时调用的DSL，可用于添加点击、长按、触摸等，重复添加会覆盖
      * @param V VH类型
      */
     @Suppress("UNCHECKED_CAST")
-    inline fun <reified V : TypeViewHolder<*>> addViewHolderClickListener(noinline onClick: V.(position: Int) -> Unit) {
-        clickListeners[V::class.java] = onClick as TypeViewHolder<*>.(Int) -> Unit
-    }
-
-    /**
-     * 为某种VH的itemView添加长按监听，重复添加会覆盖
-     * @param V VH类型
-     */
-    @Suppress("UNCHECKED_CAST")
-    inline fun <reified V : TypeViewHolder<*>> addViewHolderLongClickListener(noinline onClick: V.(position: Int) -> Boolean) {
-        longClickListeners[V::class.java] = onClick as TypeViewHolder<*>.(Int) -> Boolean
-    }
-
-    /**
-     * 为某种VH的itemView添加触摸监听，重复添加会覆盖
-     * @param V VH类型
-     */
-    @Suppress("UNCHECKED_CAST")
-    inline fun <reified V : TypeViewHolder<*>> addViewHolderTouchListener(noinline onTouch: V.(event: MotionEvent, position: Int) -> Boolean) {
-        touchListeners[V::class.java] = onTouch as TypeViewHolder<*>.(MotionEvent, Int) -> Boolean
+    inline fun <reified V : TypeViewHolder<*>> vHCreateDSL(noinline dsl: V.() -> Unit) {
+        vhCreateDsLs[V::class.java] = dsl as TypeViewHolder<*>.() -> Unit
     }
 
     @Suppress("UNCHECKED_CAST")
@@ -185,13 +160,8 @@ class TypeAdapter(
                     //边距
                     bindingRecyclerView?.getFirstItemDecorationBy<DynamicGridItemDecoration>()
                         ?.let {
-                            logD(
-                                "设置",
-                                "spacing=$itemSpacing listLeftEdge=$listLeftEdge listRightEdge=$listRightEdge"
-                            )
-                            it.spacing = itemSpacing
-                            it.leftEdge = listLeftEdge
-                            it.rightEdge = listRightEdge
+                            logD("设置", "spacing=$itemSpacing")
+                            it.itemSpacing = itemSpacing
                         }
                 }
         }
@@ -204,32 +174,13 @@ class TypeAdapter(
         else {
             try {
                 val vhClass = dataViewMapList[viewType].second
-                logD("创建VH", "${vhClass.simpleName}")
+                logD("创建VH", vhClass.simpleName)
                 vhClass.getDeclaredConstructor(ViewGroup::class.java)
                     .apply { isAccessible = true }
                     .newInstance(parent)
                     .apply {
-                        //点击
-                        if (clickListeners[vhClass] != null)
-                            setOnClickListener(itemView) { pos ->
-                                (this as TypeViewHolder<*>).bindingTypeAdapter.clickListeners[vhClass]?.also {
-                                    it(pos)
-                                }
-                            }
-                        //长按
-                        if (longClickListeners[vhClass] != null)
-                            setOnLongClickListener(itemView) { pos ->
-                                (this as TypeViewHolder<*>).bindingTypeAdapter.longClickListeners[vhClass]?.let {
-                                    it(pos)
-                                } ?: true
-                            }
-                        //触摸
-                        if (touchListeners[vhClass] != null)
-                            setOnTouchListener(itemView) { event, pos ->
-                                (this as TypeViewHolder<*>).bindingTypeAdapter.touchListeners[vhClass]?.let {
-                                    it(event, pos)
-                                } ?: true
-                            }
+                        //TODO 在复用时可能会出现问题
+                        vhCreateDsLs[vhClass]?.invoke(this)
                     }
             } catch (e: Exception) {
                 e.printStackTrace()

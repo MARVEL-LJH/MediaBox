@@ -21,14 +21,14 @@ import com.su.mediabox.view.adapter.type.dynamicGrid
 import com.su.mediabox.view.adapter.type.initTypeList
 import com.su.mediabox.view.adapter.type.typeAdapter
 
-class MediaDetailActivity : BasePluginActivity<ActivityMediaDetailBinding>() {
+class MediaDetailActivity : BasePluginActivity() {
 
-    private lateinit var viewModel :MediaDetailViewModel
+    private val mBinding by viewBind(ActivityMediaDetailBinding::inflate)
+    private val viewModel by viewModels<MediaDetailViewModel>()
     private var isClick = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-viewModel=ViewModelProvider(this)[MediaDetailViewModel::class.java]
         setTransparentStatusBar(window, isDark = false)
 
         logD("获取VM", "@${viewModel}")
@@ -101,8 +101,6 @@ viewModel=ViewModelProvider(this)[MediaDetailViewModel::class.java]
         mBinding.srlDetailActivity.isRefreshing = true
         viewModel.getMediaDetailData()
     }
-
-    override fun getBinding() = ActivityMediaDetailBinding.inflate(layoutInflater)
 
     @SuppressLint("NotifyDataSetChanged")
     override fun onConfigurationChanged(newConfig: Configuration) {

@@ -98,7 +98,7 @@
     <string name="shortcuts_download_long">视频</string>
     <string name="shortcuts_download_short">缓存视频</string>
     <string name="attention">声明</string>
-    <string name="statement">本软件免费开源，仅可用作学习交流，因此软件产生的版权问题，软件作者概不负责！\n觉得不错欢迎去Github仓库点个Star</string>
+    <string name="statement">本软件免费开源，仅可用作学习交流！\n因此软件产生的版权问题，软件作者概不负责！\n如果用起来还不错欢迎去Github仓库点个Star</string>
     <string name="download_anime_delete_tip">是否删除该番剧？</string>
     <string name="update_widget">正在更新小组件</string>
     <string name="widget_everyday_anime">每日更新动漫</string>
@@ -106,6 +106,7 @@
     <string name="vertical_reverse">上下镜像</string>
     <string name="horizontal_reverse">左右镜像</string>
     <string name="play_error_retry">点击重试</string>
+    <string name="play_parse_error_retry">重新解析</string>
     <string name="play_error">播放错误，网络错误或目标资源已失效</string>
     <string name="reverse">镜像</string>
     <string name="no_reverse">正常</string>
@@ -234,4 +235,12 @@
     <string name="plugin_repo_title_template_installed">已安装(%d)</string>
     <string name="plugin_repo_title_template_updatable">可更新(%d)</string>
     <string name="plugin_repo_title_template_downloadable">可下载(%d)</string>
+    <string name="player_loading_hint_cache">缓冲中..</string>
+    <string name="player_loading_hint_parse">视频解析中..</string>
+    <string name="plugin_list_empty">😮没有扫描到插件！\n\n💡如何获取插件：\n 1.左滑访问官方插件仓库\n 2.从外部下载或在线安装插件</string>
+    <string name="plugin_list_loading">😮正在扫描中..</string>
+    <string name="plugin_repo_load_error">😥插件信息拉取失败！\n\n💡解决办法：\n 1.检查网络\n 2.右下角设置打开代理\n 3.下拉刷新数据</string>
+    <string name="menu_plugin_repo_submit">提交插件</string>
+    <string name="app_no_update_hint">已是最新版本</string>
+    <string name="plugin_manage_media_count_format">收藏：%d</string>
 </resources>

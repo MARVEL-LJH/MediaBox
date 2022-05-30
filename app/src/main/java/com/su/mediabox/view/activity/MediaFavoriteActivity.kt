@@ -9,17 +9,20 @@ import com.su.mediabox.R
 import com.su.mediabox.bean.MediaFavorite
 import com.su.mediabox.databinding.ActivityFavoriteBinding
 import com.su.mediabox.databinding.ViewComponentFavBinding
+import com.su.mediabox.plugin.PluginManager
 import com.su.mediabox.pluginapi.action.DetailAction
 import com.su.mediabox.pluginapi.action.PlayAction
 import com.su.mediabox.pluginapi.util.UIUtil.dp
 import com.su.mediabox.util.coil.CoilUtil.loadImage
 import com.su.mediabox.util.setOnClickListener
 import com.su.mediabox.util.setOnLongClickListener
+import com.su.mediabox.util.viewBind
 import com.su.mediabox.viewmodel.MediaFavoriteViewModel
 import com.su.mediabox.view.adapter.type.*
 
-class MediaFavoriteActivity : BasePluginActivity<ActivityFavoriteBinding>() {
+class MediaFavoriteActivity : BasePluginActivity() {
 
+    private val mBinding by viewBind(ActivityFavoriteBinding::inflate)
     private val viewModel by viewModels<MediaFavoriteViewModel>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -49,12 +52,9 @@ class MediaFavoriteActivity : BasePluginActivity<ActivityFavoriteBinding>() {
 
     }
 
-    override fun getBinding(): ActivityFavoriteBinding =
-        ActivityFavoriteBinding.inflate(layoutInflater)
-
     override fun getLoadFailedTipView() = mBinding.layoutFavoriteActivityNoFavorite
 
-    class FavoriteViewHolder private constructor(private val binding: ViewComponentFavBinding) :
+    public class FavoriteViewHolder private constructor(private val binding: ViewComponentFavBinding) :
         TypeViewHolder<MediaFavorite>(binding.root) {
 
         private var data: MediaFavorite? = null
@@ -64,19 +64,8 @@ class MediaFavoriteActivity : BasePluginActivity<ActivityFavoriteBinding>() {
         ) {
             setOnClickListener(binding.root) {
                 data?.apply {
-                    //有播放记录时点击直接续播，没有则打开介绍
-                    if (lastEpisodeUrl != null)
-                        PlayAction.obtain(lastEpisodeUrl!!, cover, mediaUrl, mediaTitle)
-                            .go(itemView.context)
-                    else
-                        DetailAction.obtain(mediaUrl).go(itemView.context)
+                    DetailAction.obtain(mediaUrl).go(itemView.context)
                 }
-            }
-            setOnLongClickListener(binding.root) {
-                data?.mediaUrl?.also {
-                    DetailAction.obtain(it).go(itemView.context)
-                }
-                true
             }
         }
 

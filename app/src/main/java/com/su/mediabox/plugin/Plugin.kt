@@ -14,16 +14,17 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.*
 import com.su.mediabox.App
 import com.su.mediabox.R
-import com.su.mediabox.bean.PluginInfo
+import com.su.mediabox.model.PluginInfo
 import com.su.mediabox.pluginapi.Constant
 import com.su.mediabox.pluginapi.IPluginFactory
 import com.su.mediabox.pluginapi.components.IBasePageDataComponent
 import com.su.mediabox.util.*
+import com.su.mediabox.util.Text.githubProxy
 import com.su.mediabox.util.Util.getSignatures
-import com.su.mediabox.view.adapter.type.TypeAdapter
 import dalvik.system.PathClassLoader
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
@@ -57,12 +58,13 @@ object PluginManager {
     private val pluginIntent = Intent(Constant.PLUGIN_DEBUG_ACTION)
     private val pluginWorkScope: CoroutineScope = CoroutineScope(Dispatchers.IO)
 
-    val pluginLiveData: LiveData<List<PluginInfo>> = pluginDataFlow
+    val pluginFlow: Flow<List<PluginInfo>> = pluginDataFlow
         .map {
             it.values.toList()
         }
         .flowOn(Dispatchers.Default)
-        .asLiveData()
+
+    val pluginLiveData: LiveData<List<PluginInfo>> = pluginFlow.asLiveData()
 
     val currentLaunchPlugin = _currentLaunchPlugin.toLiveData().apply {
         observeForever {
@@ -78,14 +80,18 @@ object PluginManager {
             pluginDir.listFiles()?.apply {
                 logD("内部插件数量", "$size")
             }?.forEach { pluginPackage ->
-                parsePluginInfo(pluginPackage)?.also { plugins[it.packageName] = it }
+                val path = pluginPackage.absolutePath
+                logD("内部插件", path)
+                parsePluginInfo(path)?.also { plugins[it.packageName] = it }
             }
             //扫描已安装的，只在debug模式下有效以方便调试
             debug {
                 packageManager.queryIntentActivities(pluginIntent, 0).apply {
                     logD("外部插件数量", "$size")
                 }.forEach { info ->
-                    parsePluginInfo(File(info.activityInfo.applicationInfo.sourceDir))?.also {
+                    val path = info.activityInfo.applicationInfo.sourceDir
+                    logD("外部插件", path)
+                    parsePluginInfo(path)?.also {
                         it.isExternalPlugin = true
                         plugins[it.packageName] = it
                     }
@@ -98,11 +104,18 @@ object PluginManager {
 
     fun getPluginInfo(packageName: String) = pluginDataFlow.value[packageName]
 
-    fun parsePluginInfo(pluginPackage: File): PluginInfo? {
+    fun parsePluginInfo(pluginPackagePath: String): PluginInfo? {
         App.context.packageManager.getPackageArchiveInfo(
-            pluginPackage.absolutePath,
+            pluginPackagePath,
             PackageManager.GET_META_DATA or PackageManager.GET_SIGNATURES
         )?.apply {
+            //部分系统（尤其是低版本）上存在加载资源失败的bug
+            applicationInfo.apply {
+                if (publicSourceDir.isNullOrEmpty())
+                    publicSourceDir = pluginPackagePath
+                if (sourceDir.isNullOrEmpty())
+                    sourceDir = pluginPackagePath
+            }
             return parsePluginInfo(this)
         }
         return null
@@ -132,10 +145,11 @@ object PluginManager {
         )
     }
 
-    fun Context.launchPlugin(pluginInfo: PluginInfo?) {
+    fun Context.launchPlugin(pluginInfo: PluginInfo?, isLaunchInitAction: Boolean = true) {
         pluginInfo?.apply {
             _currentLaunchPlugin.value = this
-            acquirePluginFactory().initAction.go(this@launchPlugin)
+            if (isLaunchInitAction)
+                acquirePluginFactory().initAction.go(this@launchPlugin)
         }
     }
 
@@ -167,7 +181,7 @@ object PluginManager {
         val downloadManager =
             App.context.getSystemService(AppCompatActivity.DOWNLOAD_SERVICE) as DownloadManager
         val uri: Uri = Uri
-            .parse(pluginInfo.sourcePath)
+            .parse(pluginInfo.sourcePath.githubProxy)
         val request = DownloadManager.Request(uri).apply {
             val fileName = "${pluginInfo.name}_${pluginInfo.packageName}_${pluginInfo.version}.mpp"
             if (directInstall) {
@@ -269,7 +283,7 @@ object PluginManager {
                             pluginWorkScope.launch {
                                 logD("安装插件缓存", path)
                                 try {
-                                    parsePluginInfo(this@apply)?.also {
+                                    parsePluginInfo(this@apply.absolutePath)?.also {
                                         FileUri.getUriByFile(this@apply, true)
                                             ?.let { it1 -> installPlugin(it1, it) }
                                     }

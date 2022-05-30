@@ -13,6 +13,7 @@ import com.su.mediabox.bean.MediaSearchHistory
 import com.su.mediabox.database.getAppDataBase
 import com.su.mediabox.databinding.ActivitySearchBinding
 import com.su.mediabox.databinding.ItemSearchHistory1Binding
+import com.su.mediabox.plugin.PluginManager
 import com.su.mediabox.pluginapi.action.SearchAction
 import com.su.mediabox.util.*
 import com.su.mediabox.util.Util.showKeyboard
@@ -22,7 +23,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
-class MediaSearchActivity : BasePluginActivity<ActivitySearchBinding>() {
+class MediaSearchActivity : BasePluginActivity() {
 
     companion object {
         private val searchDataViewMapList = DataViewMapList().apply {
@@ -31,7 +32,8 @@ class MediaSearchActivity : BasePluginActivity<ActivitySearchBinding>() {
         }
     }
 
-    private val viewModel by viewModels<MediaSearchViewModel>()
+    val mBinding by viewBind(ActivitySearchBinding::inflate)
+    val viewModel by viewModels<MediaSearchViewModel>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -41,15 +43,20 @@ class MediaSearchActivity : BasePluginActivity<ActivitySearchBinding>() {
             rvSearchActivity
                 .dynamicGrid()
                 .initTypeList(searchDataViewMapList) {
-                    addViewHolderClickListener<SearchHistoryViewHolder> { pos ->
-                        getData<MediaSearchHistory>(pos)?.also {
-                            val keyWork = it.title.trim()
-                            mBinding.etSearchActivitySearch.apply {
-                                setText(keyWork)
-                                setSelection(keyWork.length)
+                    vHCreateDSL<SearchHistoryViewHolder> {
+                        setOnClickListener(itemView) { pos ->
+                            bindingTypeAdapter.getData<MediaSearchHistory>(pos)?.also {
+                                val keyWork = it.title.trim()
+                                //注意这里因为复用问题所以不能直接通过内部类调用变量
+                                (bindingContext.toComponentActivity() as? MediaSearchActivity)?.apply {
+                                    mBinding.etSearchActivitySearch.apply {
+                                        text = keyWork
+                                        setSelection(keyWork.length)
+                                    }
+                                    showLoading()
+                                    viewModel.getSearchData(keyWork)
+                                }
                             }
-                            showLoading()
-                            viewModel.getSearchData(keyWork)
                         }
                     }
                 }
@@ -61,47 +68,37 @@ class MediaSearchActivity : BasePluginActivity<ActivitySearchBinding>() {
             }
             //搜索框
             mBinding.etSearchActivitySearch.apply {
-                setOnEditorActionListener { _, action, _ ->
-                    if (action == EditorInfo.IME_ACTION_SEARCH) {
-                        isEnabled = false
-                        viewModel.getSearchData(text.toString())
-                    }
-                    true
+                isEdit = true
+                setEnterListener {
+                    isEdit = false
+                    viewModel.getSearchData(text.toString())
                 }
-            }
-            //清空关键字
-            etSearchActivitySearch.addTextChangedListener(object : TextWatcher {
-                override fun beforeTextChanged(
-                    s: CharSequence?,
-                    start: Int,
-                    count: Int,
-                    after: Int
-                ) {
+                addTextChangedListener {
+                    if (it.isNullOrEmpty())
+                        viewModel.showSearchHistory()
                 }
-
-                override fun afterTextChanged(s: Editable?) {}
-                override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
-                    ivSearchActivityClearKeyWords.apply {
-                        if (s.isNullOrEmpty()) gone()
-                        else visible()
+                //标识当前插件
+                PluginManager.currentLaunchPlugin.observe(this@MediaSearchActivity) {
+                    it?.apply {
+                        setNavIcon(icon)
                     }
                 }
-            })
-            ivSearchActivityClearKeyWords.setOnClickListener {
-                etSearchActivitySearch.setText("")
-                viewModel.showSearchHistory()
+                setNavListener {
+                    //TODO 切换插件
+                }
             }
-            //返回
-            tvSearchActivityCancel.setOnClickListener { finish() }
 
+            viewModel.showSearchHistory()
             etSearchActivitySearch.showKeyboard()
         }
 
         viewModel.showState.observe(this) {
             mBinding.apply {
                 srlSearchActivity.finishLoadMore()
-                etSearchActivitySearch.isEnabled = true
+                etSearchActivitySearch.isEdit = true
                 srlSearchActivity.setEnableLoadMore(false)
+                if (etSearchActivitySearch.text.isNotEmpty())
+                    etSearchActivitySearch.hideKeyboard()
             }
             when (it) {
                 MediaSearchViewModel.ShowState.KEYWORD -> {
@@ -125,10 +122,8 @@ class MediaSearchActivity : BasePluginActivity<ActivitySearchBinding>() {
                     }
                 }
                 MediaSearchViewModel.ShowState.FAILED -> {
-                    mBinding.rvSearchActivity.typeAdapter().submitList(null) {
-                        mBinding.tvSearchActivityTip.gone()
-                        mBinding.layoutSearchActivityLoading.visibility = View.GONE
-                    }
+                    mBinding.srlSearchActivity.setEnableLoadMore(true)
+                    mBinding.layoutSearchActivityLoading.visibility = View.GONE
                 }
                 else -> {}
             }
@@ -137,13 +132,6 @@ class MediaSearchActivity : BasePluginActivity<ActivitySearchBinding>() {
         getAction<SearchAction>()?.also {
             viewModel.getSearchData(it.keyWork)
         }
-    }
-
-    override fun getBinding(): ActivitySearchBinding = ActivitySearchBinding.inflate(layoutInflater)
-
-    override fun finish() {
-        super.finish()
-        overridePendingTransition(0, R.anim.anl_push_top_out)
     }
 
     private fun showLoading() {
