@@ -1,9 +1,5 @@
 package com.su.mediabox.view.fragment.page
 
-import android.content.BroadcastReceiver
-import android.content.Context
-import android.content.Intent
-import android.content.IntentFilter
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.fragment.app.activityViewModels
@@ -15,18 +11,20 @@ import com.su.mediabox.model.PluginInfo
 import com.su.mediabox.databinding.PageExploreBinding
 import com.su.mediabox.lifecycleCollect
 import com.su.mediabox.model.PluginManageModel
-import com.su.mediabox.plugin.PluginManager
 import com.su.mediabox.plugin.PluginManager.launchPlugin
 import com.su.mediabox.pluginapi.Constant
+import com.su.mediabox.pluginapi.action.DetailAction
 import com.su.mediabox.pluginapi.data.SimpleTextData
 import com.su.mediabox.pluginapi.util.UIUtil.dp
 import com.su.mediabox.util.*
 import com.su.mediabox.view.activity.MediaFavoriteActivity
 import com.su.mediabox.view.adapter.*
 import com.su.mediabox.view.adapter.type.*
+import com.su.mediabox.view.dialog.PluginManageBottomSheetDialogFragment
 import com.su.mediabox.view.fragment.BaseFragment
-import com.su.mediabox.view.viewcomponents.ItemPluginViewHolder
+import com.su.mediabox.view.viewcomponents.inner.ItemPluginViewHolder
 import com.su.mediabox.view.viewcomponents.SimpleTextViewHolder
+import com.su.mediabox.view.viewcomponents.inner.MediaMoreViewHolder
 import com.su.mediabox.viewmodel.ExploreViewModel
 
 //TODO 要重新设计为插件管理合并数据显示
@@ -57,14 +55,15 @@ class ExplorePageFragment : BaseFragment<PageExploreBinding>() {
                         .registerDataViewMap<PluginInfo, ItemPluginViewHolder>()
                         .registerDataViewMap<SimpleTextData, SimpleTextViewHolder>()
                         .registerDataViewMap<PluginManageModel, ItemPluginManageViewHolder>()
+                        .registerDataViewMap<MediaMoreViewHolder.DataStub, MediaMoreViewHolder>()
                         //TODO 暂时不能直接启动对于插件打开详情页
                         .registerDataViewMap<MediaFavorite, MediaFavoriteActivity.FavoriteViewHolder>(),
                     PluginManageDiff
-                ) {
-                    (it.layoutManager as GridLayoutManager).spanSizeLookup =
+                ) { rv ->
+                    (rv.layoutManager as GridLayoutManager).spanSizeLookup =
                         ExploreSpanLookup(this::getItem)
 
-                    it.addItemDecoration(DynamicGridItemDecoration(8.dp))
+                    rv.addItemDecoration(DynamicGridItemDecoration(8.dp))
 
                     vHCreateDSL<ItemPluginManageViewHolder> {
                         //切换分组状态
@@ -75,24 +74,57 @@ class ExplorePageFragment : BaseFragment<PageExploreBinding>() {
                         setOnClickListener(itemView) { pos ->
                             bindingContext.launchPlugin(getData<PluginManageModel>(pos)?.pluginInfo)
                         }
+                        //管理插件
+                        setOnLongClickListener(itemView) { pos ->
+                            bindingTypeAdapter.getData<PluginManageModel>(pos)?.let { pm ->
+                                PluginManageBottomSheetDialogFragment.create(pm.pluginInfo.packageName)
+                                    .show(requireActivity())
+                            }
+                            true
+                        }
+                    }
+
+                    vHCreateDSL<MediaFavoriteActivity.FavoriteViewHolder> {
+                        setOnClickListener(itemView) { pos ->
+                            //向上查找所属插件的信息
+                            bindingTypeAdapter.findTypeData<PluginManageModel>(pos, -1)?.also {
+                                //提取目标媒体信息
+                                bindingTypeAdapter.getData<MediaFavorite>(pos)?.run {
+                                    //静默启动插件
+                                    bindingContext.launchPlugin(it.pluginInfo, false)
+                                    //路由到目标页面
+                                    DetailAction.obtain(mediaUrl).go(bindingContext)
+                                }
+                            }
+                        }
+                    }
+
+                    vHCreateDSL<MediaMoreViewHolder> {
+                        setOnClickListener(itemView) { pos ->
+                            //向上查找所属插件的信息
+                            bindingTypeAdapter.findTypeData<PluginManageModel>(pos, -1)?.also {
+                                bindingContext.launchPlugin(it.pluginInfo, false)
+                                requireActivity().goActivity<MediaFavoriteActivity>()
+                            }
+                        }
                     }
                 }
         }
 
-        lifecycleCollect(viewModel.exploreData) {
-            when (it) {
+        lifecycleCollect(viewModel.exploreData) { dataState ->
+            when (dataState) {
                 DataState.Init -> {
                     logD("插件管理数据", "初始化")
                 }
                 is DataState.Success -> {
-                    logD("插件管理数据", "数据数量=${it.data?.data?.size} 引用=${it.data?.data?.hashCode()}")
-                    mBinding.pluginList.submitList(it.data?.data ?: emptyView)
+                    logD("插件管理数据", "数据数量=${dataState.data?.data?.size} 引用=${dataState.data?.data?.hashCode()}")
+                    mBinding.pluginList.submitList(dataState.data?.data.let { if (it.isNullOrEmpty()) emptyView else it })
                 }
                 DataState.Loading -> {
                     logD("插件管理数据", "加载中")
                 }
                 is DataState.Failed -> {
-                    it.throwable?.message?.showToast()
+                    dataState.throwable?.message?.showToast()
                 }
             }
         }
@@ -112,7 +144,7 @@ class ExplorePageFragment : BaseFragment<PageExploreBinding>() {
             binding.apply {
                 pluginManageIcon.setImageDrawable(data.pluginInfo.icon)
                 pluginManageName.text = data.pluginInfo.name
-                pluginManageMediaCount.text = bindingContext.getString(
+                pluginManageMediaInfo.text = bindingContext.getString(
                     R.string.plugin_manage_media_count_format,
                     data.childData?.size ?: 0
                 )

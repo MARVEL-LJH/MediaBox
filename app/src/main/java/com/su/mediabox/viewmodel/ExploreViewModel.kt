@@ -9,10 +9,13 @@ import com.su.mediabox.plugin.PluginManager
 import com.su.mediabox.util.*
 import com.su.mediabox.util.DataState.Success.Companion.destroySuccessIns
 import com.su.mediabox.util.DataState.Success.Companion.successIns
+import com.su.mediabox.view.viewcomponents.inner.MediaMoreViewHolder
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import java.lang.Integer.min
+import kotlin.math.max
 
 class ExploreViewModel : ViewModel() {
 
@@ -31,15 +34,21 @@ class ExploreViewModel : ViewModel() {
         //观测插件信息并绑定插件收藏数据库
         viewModelScope.launch {
             PluginManager.pluginFlow.collect { plugins ->
-                _exploreData.value = DataState.Loading
-                plugins.map { plugin ->
-                    logD("插件管理数据", "生成数据:${plugin.id}")
-                    //绑定信息
-                    plugin.getAppDataBase().favoriteDao().getFavoriteListFlow().map {
-                        PluginManageModel(plugin, it)
+                if (plugins.isEmpty())
+                    _exploreData.value = successIns<MutableDynamicReferenceListData<Any>>().apply {
+                        data()
                     }
-                }.also {
-                    collectFlowManageData(it)
+                else {
+                    _exploreData.value = DataState.Loading
+                    plugins.map { plugin ->
+                        logD("插件管理数据", "生成数据:${plugin.id}")
+                        //绑定信息
+                        plugin.getAppDataBase().favoriteDao().getFavoriteListFlow().map {
+                            PluginManageModel(plugin, it)
+                        }
+                    }.also {
+                        collectFlowManageData(it)
+                    }
                 }
             }
         }
@@ -76,7 +85,6 @@ class ExploreViewModel : ViewModel() {
                 .flowOn(Dispatchers.Default)
                 .collect {
                     //TODO 根据折叠状态进行增删子数据
-                    //TODO 根据最新查看日期排序
                     _exploreData.value =
                         successIns<MutableDynamicReferenceListData<Any>>().apply {
                             data().putData(it)
@@ -96,18 +104,26 @@ class ExploreViewModel : ViewModel() {
         viewModelScope.launch(Dispatchers.Default) {
             when (dataState) {
                 is DataState.Success -> {
-                    dataState.data?.data?.getOrNull(pos)?.also {
-                        if ((it as PluginManageModel).isExpand) {
-                            dataState.data?.removeData(pos + 1, it.childData?.size ?: 0)
-                        } else {
-                            it.childData?.apply {
-                                dataState.data?.appendData(this, pos + 1)
+                    dataState.data?.data?.getOrNull(pos)?.also { data ->
+                        //折叠
+                        if ((data as PluginManageModel).isExpand) {
+                            dataState.data?.removeData(
+                                pos + 1,
+                                data.childData?.size?.let { min(it, 4) + 1 } ?: 0)
+                        } else
+                        //展开
+                            data.childData?.apply {
+                                if (isNotEmpty()) {
+                                    val preData = mutableListOf<Any>()
+                                    preData.addAll(take(4))
+                                    preData.add(MediaMoreViewHolder.DataStub)
+                                    dataState.data?.appendData(preData, pos + 1)
+                                }
                             }
-                        }
                         //因为是同一引用所以必须替换一个新值保证视图更新
                         dataState.data?.replaceData(pos,
-                            PluginManageModel(it.pluginInfo, it.childData).apply {
-                                isExpand = !it.isExpand
+                            PluginManageModel(data.pluginInfo, data.childData).apply {
+                                isExpand = !data.isExpand
                             })
                     }
                 }
