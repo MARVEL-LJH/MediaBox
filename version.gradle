@@ -1,5 +1,5 @@
-ext.version_code = 36
-ext.version_name = "1.4"
+ext.version_code = 37
+ext.version_name = "2.0"
 
 def build_versions = [:]
 build_versions.compile_sdk = 31
@@ -60,9 +60,9 @@ okhttp3.okhttp_dnsoverhttps = "com.squareup.okhttp3:okhttp-dnsoverhttps:4.9.0"
 deps.okhttp3 = okhttp3
 
 def room = [:]
-room.room_runtime = "androidx.room:room-runtime:2.4.0"
-room.room_ktx = "androidx.room:room-ktx:2.4.0"
-room.room_compiler = "androidx.room:room-compiler:2.4.0"
+room.room_runtime = "androidx.room:room-runtime:2.4.2"
+room.room_ktx = "androidx.room:room-ktx:2.4.2"
+room.room_compiler = "androidx.room:room-compiler:2.4.2"
 deps.room = room
 
 def jsoup = [:]

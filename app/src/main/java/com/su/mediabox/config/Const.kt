@@ -28,6 +28,8 @@ interface Const {
             const val GITHUB_URL = "https://github.com/RyensX/MediaBox"
             const val GITHUB_NEW_ISSUE_URL = "https://github.com/RyensX/MediaBox/issues/new"
             const val GITHUB_PLUGIN_REPO_URL = "https://github.com/RyensX/MediaBoxPluginRepository"
+            const val GITHUB_PLUGIN_REPO_OFFICE_URL =
+                "https://ryensx.github.io/MediaBoxPluginRepository/"
             const val USER_NOTICE_VERSION = 2
 
             val licenses = listOf(
@@ -69,6 +71,7 @@ interface Setting {
     companion object {
         const val NET_REPO_PROXY = "net_repo_proxy"
         const val SHOW_PLAY_BOTTOM_BAR = "show_play_bottom_bar"
+        const val APP_LAUNCH_COUNT = "app_launch_count"
     }
 }
 
