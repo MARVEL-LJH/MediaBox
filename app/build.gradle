@@ -1,5 +1,3 @@
-import java.lang.reflect.Field
-
 plugins {
     id 'com.android.application'
     id 'kotlin-android'
@@ -66,9 +64,7 @@ android {
     }
 
     productFlavors {
-        Github {
-            manifestPlaceholders = [UMENG_CHANNEL_VALUE: "Github"]
-        }
+        Github {}
     }
 
     applicationVariants.all { variant ->
@@ -85,18 +81,18 @@ android {
         debug {
             minifyEnabled false
             zipAlignEnabled false
-            shrinkResources false           // 使用keep.xml，keep住皮肤文件
+            shrinkResources false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-            applicationIdSuffix '.debug'    // 一台手机debug release共存
+            applicationIdSuffix '.debug'    //debug release共存
             ndk {
                 abiFilters 'armeabi', 'x86', 'x86_64', 'arm64-v8a'
             }
         }
         release {
-            signingConfig signingConfigs.release    //签名
+            signingConfig signingConfigs.release
             minifyEnabled true
             zipAlignEnabled true
-            shrinkResources true       // 使用keep.xml，keep住皮肤文件
+            shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
             ndk {
                 abiFilters 'armeabi', 'arm64-v8a'
@@ -126,7 +122,6 @@ android {
 }
 
 dependencies {
-
     implementation deps.kotlin.kotlin_stdlib
     implementation deps.kotlin.core_ktx
     implementation deps.support.appcompat
@@ -164,10 +159,6 @@ dependencies {
     compileOnly files('libs/cdi-api.jar')
     // DLNACastService编译需要javax.enterprise.inject.Alternative类
 //    debugImplementation 'com.squareup.leakcanary:leakcanary-android:2.4'
-    implementation deps.umsdk.common
-    implementation deps.umsdk.asms
-    implementation deps.umsdk.apm
-    implementation deps.umsdk.push
     implementation deps.smart.refresh_layout_kernel
     implementation deps.smart.refresh_header_material
     implementation deps.smart.refresh_footer_ball
@@ -182,6 +173,8 @@ dependencies {
     implementation deps.settings.data_store
     implementation project(':MediaBoxPluginApi')
     //debugImplementation 'com.squareup.leakcanary:leakcanary-android:2.8.1'
+    implementation deps.appAnalytics.analytics
+    implementation deps.appAnalytics.crashes
 }
 
 try {

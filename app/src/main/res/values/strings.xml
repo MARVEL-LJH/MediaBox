@@ -69,7 +69,7 @@
     <string name="share_unknown_error">分享出现未知异常</string>
     <string name="already_copy_to_clipboard">已复制到剪贴板</string>
     <string name="more">更多</string>
-    <string name="my_favorite">我的收藏</string>
+    <string name="media_data">媒体记录</string>
     <string name="no_favorite">没有收藏记录</string>
     <string name="watch_history">观看历史</string>
     <string name="no_history">没有观看历史</string>
@@ -253,4 +253,25 @@
     <string name="plugin_manage_media_uninstall_msg">注意：卸载后数据也会删除，并且无法恢复</string>
     <string name="media_more">仅预览最多4个，点击查看完整收藏列表</string>
     <string name="app_recommend">用起来感觉还不错？\n欢迎到Github点Star支持开发者！</string>
+    <string name="media_data_page_favorite">收藏</string>
+    <string name="media_data_page_history">历史</string>
+    <string name="media_data_history_last_time_format">上次观看：yyyy年MM月dd日 HH:mm</string>
+    <string name="media_data_page_history_clear">清空历史</string>
+    <string name="media_data_page_history_clear_title">确认清空历史？</string>
+    <string name="media_data_page_history_clea_desc">历史记录不会云端备份，共%d条，删除后无法恢复，请谨慎操作</string>
+    <string name="empty_default_msg">空空如也</string>
+    <string name="crash_title">应用崩溃</string>
+    <string name="crash_msg">日志已上传分析，建议去github提交issue加快处理</string>
+    <string name="crash_open_issue">复制信息并打开Github</string>
+    <string name="crash_close">重启</string>
+    <string name="crash_version">版本</string>
+    <string name="crash_error">崩溃信息</string>
+    <string name="crash_info">系统信息</string>
+    <string name="plugin_repo">仓库</string>
+    <string name="plugin_api_version_too_low">该插件API版本过低(%d &lt; %d)，请升级插件</string>
+    <string name="plugin_api_version_too_high">该插件API版本过高(%d &gt; %d)，请升级APP</string>
+    <string name="plugin_not_exist">该插件根文件不存在！</string>
+    <string name="plugin_init_error">插件工厂载入错误，请联系插件作者检查元信息</string>
+    <string name="plugin_run_error">当前未启动插件！</string>
+    <string name="plugin_component_error">当前插件未提供组件:%s</string>
 </resources>

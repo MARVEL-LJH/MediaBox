@@ -15,6 +15,7 @@ import com.shuyu.gsyvideoplayer.player.PlayerFactory
 import com.shuyu.gsyvideoplayer.utils.GSYVideoType
 import com.shuyu.gsyvideoplayer.utils.OrientationUtils
 import com.shuyu.gsyvideoplayer.video.base.GSYVideoView
+import com.su.mediabox.Pref
 import com.su.mediabox.R
 import com.su.mediabox.databinding.ActivityVideoMediaPlayBinding
 import com.su.mediabox.pluginapi.action.PlayAction
@@ -130,7 +131,11 @@ class VideoMediaPlayActivity : BasePluginActivity(),
                 isRotateWithSystem = false
                 if (screenType != ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE)
                     resolveByClick()
+                setLockClickListener { _, lock ->
+                    isRotateWithSystem = lock
+                }
             }
+
             ivDownloadButton?.gone()
             fullscreenButton.gone()
             //是否开启自动旋转
@@ -156,11 +161,11 @@ class VideoMediaPlayActivity : BasePluginActivity(),
                 }
             })
 
-            val playManager =
+            val playManager: Class<IPlayerManager> =
                 Util.withoutExceptionGet { action.playerManager as? Class<IPlayerManager> }
                     ?:
                     //自定义默认解码器
-                    Exo2PlayerManager::class.java
+                    Class.forName(Pref.playDefaultCore.value) as Class<IPlayerManager>
             PlayerFactory.setPlayManager(playManager)
 
             //TODO 硬解码开关
@@ -200,7 +205,12 @@ class VideoMediaPlayActivity : BasePluginActivity(),
                         speed -= 0.5F
                     }
                     //后退
-                    else seekTo(max(DEFAULT_SEEK_LENGTH, currentPositionWhenPlaying - DEFAULT_SEEK_LENGTH))
+                    else seekTo(
+                        max(
+                            DEFAULT_SEEK_LENGTH,
+                            currentPositionWhenPlaying - DEFAULT_SEEK_LENGTH
+                        )
+                    )
 
                 KeyEvent.KEYCODE_DPAD_RIGHT, KeyEvent.KEYCODE_MEDIA_STEP_FORWARD ->
                     //加速
@@ -208,7 +218,12 @@ class VideoMediaPlayActivity : BasePluginActivity(),
                         speed += 0.5F
                     }
                     //前进
-                    else seekTo(min(duration.toLong(), currentPositionWhenPlaying + DEFAULT_SEEK_LENGTH))
+                    else seekTo(
+                        min(
+                            duration.toLong(),
+                            currentPositionWhenPlaying + DEFAULT_SEEK_LENGTH
+                        )
+                    )
                 //静音
                 KeyEvent.KEYCODE_M ->
                     GSYVideoManager.instance().apply {
